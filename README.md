@@ -6,9 +6,9 @@ Real-time live timing dashboard for **FIA World Endurance Championship** races i
 
 ```mermaid
 flowchart LR
-  A["FIA WEC GCS Bucket<br/>(ecm-prod/live/WEC/data.json)"] -->|"poll 3s"| B["Ingestor (Python)<br/>start-lemans-ingestor.py"]
+  A["FIA WEC GCS Bucket<br/>(ecm-prod/live/WEC/data.json)"] -->|"poll 3s"| B["Ingestor (TS)<br/>packages/ingestor"]
   B -->|"write"| C[(MongoDB<br/>wec-livetiming)]
-  C -->|"read"| D["API (Express / TS)<br/>packages/api · port 8001"]
+  C -->|"read"| D["API (Fastify / TS)<br/>packages/api · port 8001"]
   D -->|"serves"| E["React Dashboard<br/>packages/app · port 5173 dev"]
   D -->|"serves"| F["Built Frontend<br/>(packages/app/dist)"]
 ```
@@ -52,7 +52,7 @@ Covers all WEC rounds: Qatar, Imola, Spa, Le Mans, São Paulo, Austin, Fuji, Bah
 ```
 wec-dashboard/
 ├── packages/
-│   ├── api/                    # Express + TypeScript API server (port 8001)
+│   ├── api/                    # Fastify + TypeScript API server (port 8001)
 │   │   ├── src/
 │   │   │   ├── index.ts       # Server entry, static files, routing
 │   │   │   ├── db.ts          # MongoDB client
@@ -64,9 +64,15 @@ wec-dashboard/
 │   │   │       └── history.ts # GET /api/history
 │   │   ├── package.json
 │   │   └── tsconfig.json
+│   ├── ingestor/                # TypeScript ingestor (polls GCS → MongoDB)
+│   │   ├── src/
+│   │   │   ├── index.ts       # Poller loop, storage, dedup
+│   │   │   └── types.ts       # Raw data interfaces
+│   │   ├── package.json
+│   │   └── tsconfig.json
 │   └── app/                    # React + TypeScript + Tailwind v4 + Vite
 │       ├── src/
-│       │   ├── App.tsx        # Main app: polling, class filter, layout
+│       │   ├── App.tsx
 │       │   ├── api/client.ts  # API fetch functions
 │       │   ├── types/index.ts # Frontend TypeScript interfaces
 │       │   ├── index.css      # Tailwind v4 imports + custom theme
@@ -89,9 +95,8 @@ wec-dashboard/
 
 ### Prerequisites
 
-- Node.js 22+ with `pnpm` (any recent version)
 - MongoDB running on `localhost:27017`
-- Python 3.9+ with `pymongo` and `requests` (for the ingestor script — lives outside this repo)
+- Node.js 22+ with `pnpm` (any recent version)
 
 ### Install Dependencies
 
@@ -127,7 +132,7 @@ This produces `packages/app/dist/` which the API server serves as static files.
 
 **1. Ingestor** — poll live data into MongoDB:
 ```bash
-python3 ~/.hermes/scripts/start-lemans-ingestor.py
+pnpm --filter ingestor run start
 ```
 
 **2. API** — serve JSON + built frontend (port 8001):
@@ -146,10 +151,11 @@ The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
 
 | Command | Description |
 |---|---|
-| `pnpm dev` | Start both API + frontend dev servers in parallel |
-| `pnpm build` | Build both packages |
-| `pnpm typecheck` | TypeScript check both packages |
+| `pnpm dev` | Start API + frontend dev servers (run ingestor separately) |
+| `pnpm build` | Build all packages |
+| `pnpm typecheck` | TypeScript check all packages |
 | `pnpm clean` | Remove all `dist/` directories |
+| `pnpm --filter ingestor run start` | Start the data ingestor |
 
 ## API Endpoints
 
@@ -182,8 +188,8 @@ The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
 
 ## Stack
 
-- **Ingestor:** Python → MongoDB (separate Hermes script, outside repo)
-- **API:** Express + TypeScript (`packages/api`)
+- **Ingestor:** TypeScript (`packages/ingestor`)
+- **API:** Fastify + TypeScript (`packages/api`)
 - **Frontend:** React 19 + TypeScript + Tailwind v4 + Vite (`packages/app`)
 - **Workspace:** pnpm monorepo
 - **Database:** MongoDB (`wec-livetiming`)

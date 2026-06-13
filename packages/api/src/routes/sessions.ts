@@ -1,7 +1,5 @@
-import { Router } from "express";
+import { FastifyInstance } from "fastify";
 import { getDB } from "../db.js";
-
-const router = Router();
 
 interface SessionDoc {
   session_id: number;
@@ -10,21 +8,21 @@ interface SessionDoc {
   last_seen: string;
 }
 
-router.get("/", async (_req, res) => {
-  try {
-    const db = getDB();
-    const sessions = await db
-      .collection<SessionDoc>("sessions")
-      .find({}, { projection: { _id: 0 } })
-      .sort({ last_seen: -1 })
-      .limit(20)
-      .toArray();
+export default async function sessionsRoutes(fastify: FastifyInstance) {
+  fastify.get("/api/sessions", async (_request, reply) => {
+    try {
+      const db = getDB();
+      const sessions = await db
+        .collection<SessionDoc>("sessions")
+        .find({}, { projection: { _id: 0 } })
+        .sort({ last_seen: -1 })
+        .limit(20)
+        .toArray();
 
-    res.json({ count: sessions.length, sessions });
-  } catch (err) {
-    console.error("[api] /api/sessions error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-export default router;
+      return { count: sessions.length, sessions };
+    } catch (err) {
+      console.error("[api] /api/sessions error:", err);
+      return reply.code(500).send({ error: "Internal server error" });
+    }
+  });
+}

@@ -1,41 +1,45 @@
-import express from "express";
-import cors from "cors";
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import fastifyStatic from "@fastify/static";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import fs from "fs";
 import { connectDB, closeDB } from "./db.js";
-import currentRouter from "./routes/current.js";
-import entriesRouter from "./routes/entries.js";
-import sessionsRouter from "./routes/sessions.js";
-import historyRouter from "./routes/history.js";
+import currentRoutes from "./routes/current.js";
+import entriesRoutes from "./routes/entries.js";
+import sessionsRoutes from "./routes/sessions.js";
+import historyRoutes from "./routes/history.js";
 
 const PORT = parseInt(process.env.PORT ?? "8001", 10);
 
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-// API routes
-app.use("/api", currentRouter);
-app.use("/api/entries", entriesRouter);
-app.use("/api/sessions", sessionsRouter);
-app.use("/api/history", historyRouter);
-
-// Health check
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", db: "wec-livetiming" });
-});
-
-// Serve built frontend as static files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Try multiple paths for the frontend build
+const fastify = Fastify({
+  logger: false,
+});
+
+// CORS
+await fastify.register(cors, {
+  origin: true,
+});
+
+// API routes
+await fastify.register(currentRoutes);
+await fastify.register(entriesRoutes);
+await fastify.register(sessionsRoutes);
+await fastify.register(historyRoutes);
+
+// Health check
+fastify.get("/api/health", async () => {
+  return { status: "ok", db: "wec-livetiming" };
+});
+
+// Serve built frontend
 const possiblePaths = [
-  resolve(__dirname, "..", "..", "app", "dist"),    // dev: packages/api/src -> packages/app/dist
-  resolve(__dirname, "..", "app", "dist"),            // built: packages/api/dist -> packages/app/dist
-  resolve(__dirname, "..", "..", "..", "app", "dist"),// fallback
+  resolve(__dirname, "..", "..", "app", "dist"),
+  resolve(__dirname, "..", "app", "dist"),
+  resolve(__dirname, "..", "..", "..", "app", "dist"),
 ];
 
 let frontendPath: string | null = null;
@@ -47,46 +51,52 @@ for (const p of possiblePaths) {
 }
 
 if (frontendPath) {
-  app.use(express.static(frontendPath));
-  // SPA fallback: serve index.html for non-API routes
-  app.get("*", (_req, res) => {
-    res.sendFile(resolve(frontendPath!, "index.html"));
+  await fastify.register(fastifyStatic, {
+    root: frontendPath,
+    prefix: "/",
   });
+
+  // SPA fallback: serve index.html for any non-API route
+  fastify.setNotFoundHandler(async (request, reply) => {
+    if (request.url.startsWith("/api/")) {
+      return reply.code(404).send({ error: "Not found" });
+    }
+    return reply.sendFile("index.html");
+  });
+
   console.log(`[wec-api] Serving frontend from ${frontendPath}`);
 } else {
   console.log("[wec-api] No static frontend found — API only");
-  app.get("/", (_req, res) => {
-    res.json({
+  fastify.get("/", async () => {
+    return {
       message: "WEC Live Timing API",
       docs: "/api/current, /api/entries, /api/sessions, /api/history",
-    });
+    };
   });
 }
 
-// Start server
+// Start
 async function main() {
   try {
     await connectDB();
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`[wec-api] Listening on http://0.0.0.0:${PORT}`);
-    });
+    await fastify.listen({ host: "0.0.0.0", port: PORT });
+    console.log(`[wec-api] Listening on http://0.0.0.0:${PORT}`);
   } catch (err) {
     console.error("[wec-api] Failed to start:", err);
+    await closeDB();
     process.exit(1);
   }
 }
 
 // Graceful shutdown
-process.on("SIGINT", async () => {
+const shutdown = async () => {
   console.log("\n[wec-api] Shutting down...");
+  await fastify.close();
   await closeDB();
   process.exit(0);
-});
+};
 
-process.on("SIGTERM", async () => {
-  console.log("\n[wec-api] Shutting down...");
-  await closeDB();
-  process.exit(0);
-});
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 main();

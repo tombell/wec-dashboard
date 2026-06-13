@@ -2,15 +2,15 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INGESTOR="$HOME/.hermes/scripts/start-lemans-ingestor.py"
 
 echo "=== WEC Dashboard ==="
 echo "Project: $PROJECT_DIR"
 
-# 1. Ingestor (lives outside repo)
+# 1. Ingestor
 echo ""
 echo "[1/3] Starting ingestor..."
-python3 "$INGESTOR" &
+cd "$PROJECT_DIR/packages/ingestor"
+pnpm start &
 INGESTOR_PID=$!
 echo "[ingestor] PID $INGESTOR_PID"
 sleep 2
