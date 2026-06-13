@@ -1,59 +1,43 @@
-#!/usr/bin/env python3
-"""Start the Le Mans live dashboard stack (ingestor + API + dev frontend)."""
-import os
-import sys
-import time
-import subprocess
-import signal
+#!/usr/bin/env bash
+set -e
 
-HOME = os.path.expanduser("~")
-PROJECT = os.path.join(HOME, "Workspace", "wec-dashboard")
-INGESTOR = os.path.join(HOME, ".hermes", "scripts", "start-lemans-ingestor.py")
-API_DIR = os.path.join(PROJECT, "api")
-APP_DIR = os.path.join(PROJECT, "app")
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+INGESTOR="$HOME/.hermes/scripts/start-lemans-ingestor.py"
 
-processes = []
+echo "=== WEC Dashboard ==="
+echo "Project: $PROJECT_DIR"
 
-def start(cmd, cwd, name):
-    p = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    processes.append((p, name))
-    print(f"[{name}] PID {p.pid}")
-    return p
+# 1. Ingestor (lives outside repo)
+echo ""
+echo "[1/3] Starting ingestor..."
+python3 "$INGESTOR" &
+INGESTOR_PID=$!
+echo "[ingestor] PID $INGESTOR_PID"
+sleep 2
 
-def cleanup(sig, frame):
-    print("\nShutting down...")
-    for p, name in reversed(processes):
-        print(f"  Stopping {name} (PID {p.pid})...")
-        p.terminate()
-    sys.exit(0)
+# 2. API
+echo ""
+echo "[2/3] Starting API (port 8001)..."
+cd "$PROJECT_DIR/packages/api"
+pnpm dev &
+API_PID=$!
+echo "[api] PID $API_PID"
+sleep 2
 
-signal.signal(signal.SIGINT, cleanup)
-signal.signal(signal.SIGTERM, cleanup)
+# 3. Frontend dev server
+echo ""
+echo "[3/3] Starting frontend (port 5173)..."
+cd "$PROJECT_DIR/packages/app"
+pnpm dev &
+FRONTEND_PID=$!
+echo "[frontend] PID $FRONTEND_PID"
 
-print("\n=== WEC Dashboard ===")
-print(f"Project: {PROJECT}")
+trap "echo 'Shutting down...'; kill $INGESTOR_PID $API_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
 
-# Start ingestor (if we want live data)
-print("\n[1/3] Starting ingestor...")
-start([sys.executable, INGESTOR], HOME, "ingestor")
-time.sleep(2)
+echo ""
+echo "=== Ready ==="
+echo "  Dashboard (dev): http://localhost:5173"
+echo "  API:             http://localhost:8001/api/current"
+echo "  Press Ctrl+C to stop all"
 
-# Start API
-print("\n[2/3] Starting API...")
-start([sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"], API_DIR, "api")
-time.sleep(2)
-
-# Start Vite dev server
-print("\n[3/3] Starting frontend...")
-dev = start(["pnpm", "dev"], APP_DIR, "frontend")
-
-print("\n=== Ready ===")
-print("  Dashboard:  http://localhost:5173")
-print("  API:        http://localhost:8001/api/current")
-print("  Press Ctrl+C to stop all\n")
-
-# Let frontend run in foreground so Ctrl+C works
-try:
-    dev.wait()
-except KeyboardInterrupt:
-    cleanup(None, None)
+wait

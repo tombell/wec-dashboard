@@ -4,9 +4,13 @@ Real-time live timing dashboard for **FIA World Endurance Championship** races i
 
 ## How It Works
 
-```
-FIA WEC GCS Bucket  ──poll 3s──>  Ingestor  ──write──>  MongoDB  <──read──  FastAPI  <──proxy──  React Dashboard
-(ecm-prod/live/WEC/data.json)    (Python)              (wec-livetiming)            (port 8001)          (port 5173)
+```mermaid
+flowchart LR
+  A["FIA WEC GCS Bucket<br/>(ecm-prod/live/WEC/data.json)"] -->|"poll 3s"| B["Ingestor (Python)<br/>start-lemans-ingestor.py"]
+  B -->|"write"| C[(MongoDB<br/>wec-livetiming)]
+  C -->|"read"| D["API (Express / TS)<br/>packages/api · port 8001"]
+  D -->|"serves"| E["React Dashboard<br/>packages/app · port 5173 dev"]
+  D -->|"serves"| F["Built Frontend<br/>(packages/app/dist)"]
 ```
 
 ### Data Source
@@ -47,52 +51,69 @@ Covers all WEC rounds: Qatar, Imola, Spa, Le Mans, São Paulo, Austin, Fuji, Bah
 
 ```
 wec-dashboard/
-├── api/
-│   └── main.py              # FastAPI server (port 8001)
-│                             # Serves JSON API + built frontend static files
-├── app/                      # React + TypeScript + Tailwind v4 + Vite
-│   ├── src/
-│   │   ├── App.tsx          # Main app: polling, class filter, layout
-│   │   ├── api/client.ts    # API fetch functions
-│   │   ├── types/index.ts   # TypeScript interfaces
-│   │   ├── index.css        # Tailwind v4 imports + custom theme
-│   │   └── components/
-│   │       ├── Leaderboard.tsx    # Main table: flags, sector dots, position Δ
-│   │       ├── SessionInfo.tsx    # Timer, flag, progress bar
-│   │       ├── WeatherWidget.tsx  # Track/air temps, humidity, wind
-│   │       └── ClassFilter.tsx    # Class tab buttons
-│   ├── index.html
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts        # Dev proxy: /api → localhost:8001
-├── start.sh                  # Launch all 3 services (ingestor + API + frontend)
-└── .hermes/
-    └── scripts/
-        └── start-lemans-ingestor.py   # Standalone poller → MongoDB
+├── packages/
+│   ├── api/                    # Express + TypeScript API server (port 8001)
+│   │   ├── src/
+│   │   │   ├── index.ts       # Server entry, static files, routing
+│   │   │   ├── db.ts          # MongoDB client
+│   │   │   ├── types.ts       # Shared TypeScript interfaces
+│   │   │   └── routes/
+│   │   │       ├── current.ts # GET /api/current
+│   │   │       ├── entries.ts # GET /api/entries & /api/entries/:id
+│   │   │       ├── sessions.ts# GET /api/sessions
+│   │   │       └── history.ts # GET /api/history
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── app/                    # React + TypeScript + Tailwind v4 + Vite
+│       ├── src/
+│       │   ├── App.tsx        # Main app: polling, class filter, layout
+│       │   ├── api/client.ts  # API fetch functions
+│       │   ├── types/index.ts # Frontend TypeScript interfaces
+│       │   ├── index.css      # Tailwind v4 imports + custom theme
+│       │   └── components/
+│       │       ├── Leaderboard.tsx   # Main table: flags, sector dots, position Δ
+│       │       ├── SessionInfo.tsx   # Timer, flag, progress bar
+│       │       ├── WeatherWidget.tsx # Track/air temps, humidity, wind
+│       │       └── ClassFilter.tsx   # Class tab buttons
+│       ├── index.html
+│       ├── package.json
+│       ├── tsconfig.json
+│       └── vite.config.ts     # Dev proxy: /api → localhost:8001
+├── pnpm-workspace.yaml        # pnpm monorepo config
+├── package.json               # Root scripts (dev, build, typecheck)
+├── start.sh                   # Launch all 3 services
+└── README.md
 ```
 
 ## Setup
 
 ### Prerequisites
 
-- Python 3.9+ with `pymongo`, `requests`, `fastapi`, `uvicorn`
+- Node.js 22+ with `pnpm` (any recent version)
 - MongoDB running on `localhost:27017`
-- Node.js 22+ with `pnpm`
+- Python 3.9+ with `pymongo` and `requests` (for the ingestor script — lives outside this repo)
 
 ### Install Dependencies
 
 ```bash
-pip3 install pymongo requests fastapi uvicorn
-cd app && pnpm install
+pnpm install
 ```
+
+This installs dependencies for both `packages/api` and `packages/app`.
 
 ### Build the Frontend
 
 ```bash
-cd app && pnpm build
+pnpm --filter app run build
 ```
 
-This produces `app/dist/` which the FastAPI server serves as static files.
+This produces `packages/app/dist/` which the API server serves as static files.
+
+| Service | URL |
+|---|---|
+| Dashboard (built) | `http://localhost:8001` |
+| Dev dashboard | `http://localhost:5173` |
+| API | `http://localhost:8001/api/current` |
 
 ## Running
 
@@ -109,25 +130,26 @@ This produces `app/dist/` which the FastAPI server serves as static files.
 python3 ~/.hermes/scripts/start-lemans-ingestor.py
 ```
 
-**2. API** — serve JSON + built frontend:
+**2. API** — serve JSON + built frontend (port 8001):
 ```bash
-cd api && python3 -m uvicorn main:app --host 0.0.0.0 --port 8001
+pnpm --filter api run dev
 ```
 
-**3. Frontend (dev mode with hot reload)**:
+**3. Frontend (dev mode with hot reload on port 5173):**
 ```bash
-cd app && pnpm dev
+pnpm --filter app run dev
 ```
-
-### Access
-
-| Service | URL |
-|---|---|
-| Dashboard (built) | `http://localhost:8001` |
-| Dev dashboard | `http://localhost:5173` |
-| API | `http://localhost:8001/api/current` |
 
 The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
+
+### Workspace Commands
+
+| Command | Description |
+|---|---|
+| `pnpm dev` | Start both API + frontend dev servers in parallel |
+| `pnpm build` | Build both packages |
+| `pnpm typecheck` | TypeScript check both packages |
+| `pnpm clean` | Remove all `dist/` directories |
 
 ## API Endpoints
 
@@ -157,6 +179,14 @@ The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
 - **Previous endpoint** (now stale, 2021 prologue data): `https://storage.googleapis.com/fiawec-prod/assets/live/WEC/__data.json`
 - The data is owned by Al Kamel Systems S.L. — personal use only
 - The ACO has previously shut down third-party live timing services (James Muscat, 2019) — this is for personal use
+
+## Stack
+
+- **Ingestor:** Python → MongoDB (separate Hermes script, outside repo)
+- **API:** Express + TypeScript (`packages/api`)
+- **Frontend:** React 19 + TypeScript + Tailwind v4 + Vite (`packages/app`)
+- **Workspace:** pnpm monorepo
+- **Database:** MongoDB (`wec-livetiming`)
 
 ## Related
 
