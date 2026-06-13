@@ -1,12 +1,12 @@
-# Le Mans Live Dashboard
+# WEC Live Dashboard
 
-Real-time live timing dashboard for the **24 Hours of Le Mans** and **FIA WEC** races. Polls the public timing JSON feed, stores snapshots in MongoDB, and serves a React dashboard.
+Real-time live timing dashboard for **FIA World Endurance Championship** races including the **24 Hours of Le Mans**. Polls the public timing JSON feed, stores snapshots in MongoDB, and serves a React dashboard.
 
 ## How It Works
 
 ```
 FIA WEC GCS Bucket  ──poll 3s──>  Ingestor  ──write──>  MongoDB  <──read──  FastAPI  <──proxy──  React Dashboard
-(ecm-prod/live/WEC/data.json)    (Python)              (lemans-livetiming)           (port 8001)          (port 5173)
+(ecm-prod/live/WEC/data.json)    (Python)              (wec-livetiming)            (port 8001)          (port 5173)
 ```
 
 ### Data Source
@@ -19,9 +19,11 @@ https://storage.googleapis.com/ecm-prod/live/WEC/data.json
 
 This is the same data that powers the official `fiawec.com` and `24h-lemans.com` live timing pages. No authentication required — it's a public bucket.
 
+Covers all WEC rounds: Qatar, Imola, Spa, Le Mans, São Paulo, Austin, Fuji, Bahrain.
+
 ### What Data Is Available
 
-**Per car (62 entries):**
+**Per car (up to 62 entries):**
 - Position, car number, driver, team, car model, class
 - Lap count, best lap, last lap, sector times, speed
 - Gaps (to leader, to class leader, to car ahead — in time or laps)
@@ -44,7 +46,7 @@ This is the same data that powers the official `fiawec.com` and `24h-lemans.com`
 ## Project Structure
 
 ```
-lemans-dashboard/
+wec-dashboard/
 ├── api/
 │   └── main.py              # FastAPI server (port 8001)
 │                             # Serves JSON API + built frontend static files
@@ -131,7 +133,7 @@ The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/current` | Full live snapshot — session info, weather, all 62 entries |
+| `GET /api/current` | Full live snapshot — session info, weather, all entries |
 | `GET /api/entries?category=HYPERCAR` | Per-car data, filterable by class |
 | `GET /api/entries/{id}` | Single car detail |
 | `GET /api/sessions` | Known session history |

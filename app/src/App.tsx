@@ -57,7 +57,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span className="text-2xl">🏁</span>
             <h1 className="text-lg font-bold tracking-tight sm:text-xl">
-              Le Mans <span className="text-accent">Live</span>
+              WEC <span className="text-accent">Live</span>
             </h1>
             {data?.live && (
               <span className="flex items-center gap-1.5 text-xs text-green-400">

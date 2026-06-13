@@ -7,7 +7,7 @@ import subprocess
 import signal
 
 HOME = os.path.expanduser("~")
-PROJECT = os.path.join(HOME, "Workspace", "lemans-dashboard")
+PROJECT = os.path.join(HOME, "Workspace", "wec-dashboard")
 INGESTOR = os.path.join(HOME, ".hermes", "scripts", "start-lemans-ingestor.py")
 API_DIR = os.path.join(PROJECT, "api")
 APP_DIR = os.path.join(PROJECT, "app")
@@ -30,7 +30,7 @@ def cleanup(sig, frame):
 signal.signal(signal.SIGINT, cleanup)
 signal.signal(signal.SIGTERM, cleanup)
 
-print("=== Le Mans Dashboard ===")
+print("\n=== WEC Dashboard ===")
 print(f"Project: {PROJECT}")
 
 # Start ingestor (if we want live data)

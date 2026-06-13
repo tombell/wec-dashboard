@@ -1,4 +1,4 @@
-"""FastAPI backend for Le Mans live dashboard - serves API + static frontend."""
+"""FastAPI backend for WEC live dashboard - serves API + static frontend."""
 import os
 from typing import Optional, Any
 from fastapi import FastAPI, Query
@@ -9,14 +9,15 @@ from pymongo import MongoClient, DESCENDING
 MONGO_PORT = 27017
 MONGO_URI = os.environ.get(
     "MONGO_CONNECTION_STRING",
-    "mongodb://localhost:{}".format(MONGO_PORT)
+    "mongodb://localhost:" + str(MONGO_PORT)
 )
-DB_NAME = "lemans-livetiming"
+DB_NAME = "wec-livetiming"
 
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 
-app = FastAPI(title="Le Mans Live Timing API")
+app = FastAPI(title="WEC Live Timing API")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -49,7 +50,7 @@ async def get_current():
         "updated_at": state.get("updated_at"),
         "poll": state.get("poll"),
         "session": {
-            "event_name": params.get("sessionName", "Le Mans"),
+            "event_name": params.get("sessionName", "WEC"),
             "session_id": params.get("sessionId"),
             "elapsed_time": "{:02d}:{:02d}:{:02d}".format(h, m, s),
             "elapsed_seconds": elapsed_s,
@@ -128,6 +129,6 @@ async def get_history(
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "dist")
 if os.path.isdir(STATIC_DIR):
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")
-    print(f"[lemans-api] Serving frontend from {STATIC_DIR}")
+    print(f"[wec-api] Serving frontend from {STATIC_DIR}")
 else:
-    print(f"[lemans-api] No static frontend at {STATIC_DIR} - API only")
+    print(f"[wec-api] No static frontend at {STATIC_DIR} - API only")
