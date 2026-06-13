@@ -11,6 +11,7 @@
   --color-lmp2: #2ed573;
   --color-lmgt3: #1e90ff;
   --color-leader: #ffd700;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
 }
 
 body {
