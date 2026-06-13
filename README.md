@@ -151,14 +151,6 @@ The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
 - **Expandable car detail** — click any row for full driver roster, sector times, gaps, 2nd best lap, tyre, state
 - **Auto-refresh** — polls every 5 seconds
 
-## Over Tailnet
-
-The API is bound to `0.0.0.0` on port 8001, so it's accessible from any device on your Tailscale network:
-
-```
-http://mythra.solarflare-skink.ts.net:8001
-```
-
 ## Data Source Notes
 
 - **Endpoint:** `https://storage.googleapis.com/ecm-prod/live/WEC/data.json`
