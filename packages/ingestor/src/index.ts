@@ -1,10 +1,9 @@
-import { MongoClient } from "mongodb";
+import Redis from "ioredis";
 import type { RawData } from "./types.js";
 
 const DATA_URL = "https://storage.googleapis.com/ecm-prod/live/WEC/data.json";
 const POLL_INTERVAL_MS = 3_000;
-const MONGO_URL = process.env.MONGO_URL ?? "mongodb://localhost:27017";
-const DB_NAME = process.env.MONGO_DB ?? "wec-livetiming";
+const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 
 let running = true;
 let pollCount = 0;
@@ -46,11 +45,11 @@ function isLive(data: RawData | null): boolean {
 }
 
 async function main() {
-  console.log(`[ingestor] Connecting to MongoDB at ${MONGO_URL}`);
-  const client = new MongoClient(MONGO_URL);
-  await client.connect();
-  const db = client.db(DB_NAME);
-  console.log(`[ingestor] Connected — ${DB_NAME}`);
+  console.log(`[ingestor] Connecting to Redis at ${REDIS_URL}`);
+  const redis = new Redis(REDIS_URL);
+  redis.on("error", (err) => console.error("[ingestor] Redis error:", err.message));
+  await redis.ping();
+  console.log("[ingestor] Connected to Redis");
 
   console.log(`[ingestor] Polling ${DATA_URL} every ${POLL_INTERVAL_MS}ms`);
 
@@ -71,46 +70,32 @@ async function main() {
       lastParamsJson = paramsJson;
 
       // 1. Current state (latest blob)
-      await db.collection("current_state").updateOne(
-        { _type: "latest" },
-        { $set: { _type: "latest", updated_at: now, poll: pollCount, params, entries } },
-        { upsert: true },
-      );
+      const state = { updated_at: now, poll: pollCount, params, entries };
+      await redis.set("wec:current", JSON.stringify(state));
 
-      // 2. Per-car entries
-      const entryOps = entries.map((entry) => ({
-        updateOne: {
-          filter: { id: entry.id },
-          update: {
-            $set: { ...entry, _type: "entry", _last_updated: now, _ingested_at: now },
-          },
-          upsert: true,
-        },
-      }));
-      if (entryOps.length > 0) {
-        await db.collection("entries").bulkWrite(entryOps, { ordered: false });
-      }
+      // 2. Per-car entries — removed: they live inside wec:current as the entries array
 
       // 3. Session snapshot
       const sessionId = params.sessionId;
       if (sessionId != null) {
         const snapshot = { ingested_at: now, poll: pollCount, params, entries };
-        await db.collection("snapshots").insertOne(snapshot);
+        const snapshotKey = `wec:snapshots:${sessionId}`;
+        await redis.lpush(snapshotKey, JSON.stringify(snapshot));
+        await redis.ltrim(snapshotKey, 0, 199);
 
         // 4. Session metadata
-        await db.collection("sessions").updateOne(
-          { session_id: sessionId },
-          {
-            $set: {
-              session_id: sessionId,
-              event_name: params.sessionName ?? "unknown",
-              last_seen: now,
-              last_params: params,
-            },
-            $setOnInsert: { first_seen: now },
-          },
-          { upsert: true },
-        );
+        const existingFirstSeen = await redis.hget("wec:sessions:first_seen", String(sessionId));
+        const firstSeen = existingFirstSeen ?? now;
+        if (!existingFirstSeen) {
+          await redis.hset("wec:sessions:first_seen", String(sessionId), now);
+        }
+        const sessionMember = JSON.stringify({
+          session_id: sessionId,
+          event_name: params.sessionName ?? "unknown",
+          first_seen: firstSeen,
+          last_seen: now,
+        });
+        await redis.zadd("wec:sessions", Date.now(), sessionMember);
       }
 
       const elapsed = params.elapsedTime ?? 0;
@@ -130,7 +115,7 @@ async function main() {
     }
   }
 
-  await client.close();
+  await redis.quit();
   console.log(`[ingestor] Stopped. ${pollCount} polls.`);
 }
 

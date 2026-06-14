@@ -1,11 +1,9 @@
 import { FastifyInstance } from "fastify";
-import { getDB } from "../db.js";
-import type { CarEntry } from "../types.js";
+import { getCurrentState } from "../redis.js";
 
 export default async function entriesRoutes(fastify: FastifyInstance) {
   fastify.get("/api/entries", async (request, reply) => {
     try {
-      const db = getDB();
       const { category, sort_by, limit: limitStr } = request.query as Record<
         string,
         string | undefined
@@ -13,9 +11,28 @@ export default async function entriesRoutes(fastify: FastifyInstance) {
       const sortBy = sort_by ?? "ranking";
       const limit = Math.min(parseInt(limitStr ?? "100", 10) || 100, 500);
 
-      const query: Record<string, unknown> = { _type: "entry" };
-      if (category) query.category = category.toUpperCase();
+      const state = await getCurrentState<{
+        entries: Record<string, unknown>[];
+      }>();
 
+      if (!state || !state.entries) {
+        return { count: 0, categories: [], entries: [] };
+      }
+
+      let entries = state.entries;
+
+      // Filter by category if provided
+      if (category) {
+        const cat = category.toUpperCase();
+        entries = entries.filter((e) => (e.category as string)?.toUpperCase() === cat);
+      }
+
+      // Collect distinct categories
+      const categories = [...new Set(state.entries.map((e) => e.category as string))].filter(
+        Boolean,
+      );
+
+      // Sort by requested field
       const allowed = new Set([
         "ranking",
         "categoryPosition",
@@ -23,24 +40,14 @@ export default async function entriesRoutes(fastify: FastifyInstance) {
         "pitstop",
       ]);
       const sortField = allowed.has(sortBy) ? sortBy : "ranking";
+      entries = [...entries].sort((a, b) => {
+        const va = a[sortField] as number ?? 0;
+        const vb = b[sortField] as number ?? 0;
+        return va - vb;
+      });
 
-      const entries = await db
-        .collection<CarEntry>("entries")
-        .find(query, {
-          projection: {
-            _id: 0,
-            _type: 0,
-            _last_updated: 0,
-            _ingested_at: 0,
-          },
-          sort: { [sortField]: 1 },
-          limit,
-        })
-        .toArray();
-
-      const categories = await db
-        .collection<CarEntry>("entries")
-        .distinct("category", query);
+      // Apply limit
+      entries = entries.slice(0, limit);
 
       return {
         count: entries.length,
@@ -57,18 +64,20 @@ export default async function entriesRoutes(fastify: FastifyInstance) {
     "/api/entries/:id",
     async (request, reply) => {
       try {
-        const db = getDB();
         const entryId = parseInt(request.params.id, 10);
         if (isNaN(entryId)) {
           return reply.code(400).send({ error: "Invalid entry ID" });
         }
 
-        const entry = await db
-          .collection<CarEntry>("entries")
-          .findOne(
-            { id: entryId },
-            { projection: { _id: 0, _type: 0, drivers: 0 } },
-          );
+        const state = await getCurrentState<{
+          entries: Record<string, unknown>[];
+        }>();
+
+        if (!state || !state.entries) {
+          return reply.code(404).send({ error: "Entry not found" });
+        }
+
+        const entry = state.entries.find((e) => (e.id as number) === entryId);
 
         if (!entry) {
           return reply.code(404).send({ error: "Entry not found" });

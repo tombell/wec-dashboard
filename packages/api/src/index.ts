@@ -4,7 +4,7 @@ import fastifyStatic from "@fastify/static";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import fs from "fs";
-import { connectDB, closeDB } from "./db.js";
+import { connectRedis, closeRedis } from "./redis.js";
 import currentRoutes from "./routes/current.js";
 import entriesRoutes from "./routes/entries.js";
 import sessionsRoutes from "./routes/sessions.js";
@@ -32,7 +32,7 @@ await fastify.register(historyRoutes);
 
 // Health check
 fastify.get("/api/health", async () => {
-  return { status: "ok", db: "wec-livetiming" };
+  return { status: "ok", db: "redis" };
 });
 
 // Serve built frontend
@@ -78,12 +78,12 @@ if (frontendPath) {
 // Start
 async function main() {
   try {
-    await connectDB();
+    await connectRedis();
     await fastify.listen({ host: "0.0.0.0", port: PORT });
     console.log(`[wec-api] Listening on http://0.0.0.0:${PORT}`);
   } catch (err) {
     console.error("[wec-api] Failed to start:", err);
-    await closeDB();
+    await closeRedis();
     process.exit(1);
   }
 }
@@ -92,7 +92,7 @@ async function main() {
 const shutdown = async () => {
   console.log("\n[wec-api] Shutting down...");
   await fastify.close();
-  await closeDB();
+  await closeRedis();
   process.exit(0);
 };
 

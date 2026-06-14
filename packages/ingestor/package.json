@@ -11,7 +11,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "mongodb": "^6.15.0"
+    "ioredis": "^5.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

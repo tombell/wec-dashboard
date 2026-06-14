@@ -1,10 +1,9 @@
 import { FastifyInstance } from "fastify";
-import { getDB } from "../db.js";
+import { getSnapshots } from "../redis.js";
 
 export default async function historyRoutes(fastify: FastifyInstance) {
   fastify.get("/api/history", async (request, reply) => {
     try {
-      const db = getDB();
       const { session_id: sessionIdStr, limit: limitStr } = request.query as Record<
         string,
         string | undefined
@@ -14,17 +13,11 @@ export default async function historyRoutes(fastify: FastifyInstance) {
         : undefined;
       const limit = Math.min(parseInt(limitStr ?? "50", 10) || 50, 200);
 
-      const query: Record<string, unknown> = {};
-      if (sessionId !== undefined) {
-        query["params.sessionId"] = sessionId;
+      if (sessionId === undefined || isNaN(sessionId)) {
+        return reply.code(400).send({ error: "session_id query parameter is required" });
       }
 
-      const snapshots = await db
-        .collection("snapshots")
-        .find(query, { projection: { _id: 0 } })
-        .sort({ poll: -1 })
-        .limit(limit)
-        .toArray();
+      const snapshots = await getSnapshots(sessionId, limit);
 
       return { count: snapshots.length, snapshots };
     } catch (err) {

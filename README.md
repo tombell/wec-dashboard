@@ -1,6 +1,6 @@
 # WEC Live Dashboard 🏁
 
-Real-time live timing dashboard for **FIA World Endurance Championship** races including the **24 Hours of Le Mans**. Polls the public FIA WEC timing JSON feed, stores snapshots in MongoDB, and serves a React frontend.
+Real-time live timing dashboard for **FIA World Endurance Championship** races including the **24 Hours of Le Mans**. Polls the public FIA WEC timing JSON feed, stores snapshots in Redis, and serves a React frontend.
 
 Built with TypeScript, Fastify, React 19, Tailwind v4, and pnpm.
 
@@ -9,7 +9,7 @@ Built with TypeScript, Fastify, React 19, Tailwind v4, and pnpm.
 ```mermaid
 flowchart LR
   A["FIA WEC GCS Bucket<br/>(ecm-prod/live/WEC/data.json)"] -->|"poll 3s"| B["Ingestor (TS)<br/>packages/ingestor"]
-  B -->|"write"| C[(MongoDB<br/>wec-livetiming)]
+  B -->|"write"| C[(Redis<br/>wec-livetiming)]
   C -->|"read"| D["API (Fastify / TS)<br/>packages/api · port 8001"]
   D -->|"serves"| E["React Dashboard<br/>packages/app · port 5173 dev"]
   D -->|"serves"| F["Built Frontend<br/>(packages/app/dist)"]
@@ -38,7 +38,7 @@ No authentication required — it's the same data powering `fiawec.com` and `24h
 
 ## Prerequisites
 
-- MongoDB running on `localhost:27017`
+- Redis running on `localhost:6379`
 - Node.js 22+ and pnpm
 
 ## Getting Started
@@ -70,7 +70,7 @@ The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
 
 ### Running Individually
 
-**1. Ingestor** — poll live data into MongoDB:
+**1. Ingestor** — poll live data into Redis:
 ```bash
 pnpm --filter ingestor run start
 ```
