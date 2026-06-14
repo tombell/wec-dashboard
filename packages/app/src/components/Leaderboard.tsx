@@ -1,4 +1,5 @@
 import { useState, Fragment } from "react";
+
 import type { CarEntry } from "@/types";
 
 interface Props {
@@ -28,15 +29,49 @@ const SECTOR_COLORS: Record<string, string> = {
 };
 
 const FLAGS: Record<string, string> = {
-  NED: "🇳🇱", GBR: "🇬🇧", FRA: "🇫🇷", DEU: "🇩🇪", ITA: "🇮🇹",
-  ESP: "🇪🇸", CHE: "🇨🇭", AUT: "🇦🇹", BEL: "🇧🇪", DNK: "🇩🇰",
-  SWE: "🇸🇪", FIN: "🇫🇮", NOR: "🇳🇴", PRT: "🇵🇹", GRC: "🇬🇷",
-  IRL: "🇮🇪", POL: "🇵🇱", CZE: "🇨🇿", HUN: "🇭🇺", ROU: "🇷🇴",
-  RUS: "🇷🇺", USA: "🇺🇸", CAN: "🇨🇦", MEX: "🇲🇽", BRA: "🇧🇷",
-  ARG: "🇦🇷", CHL: "🇨🇱", COL: "🇨🇴", JPN: "🇯🇵", CHN: "🇨🇳",
-  AUS: "🇦🇺", NZL: "🇳🇿", ZAF: "🇿🇦", MYS: "🇲🇾", ARE: "🇦🇪",
-  IND: "🇮🇳", THA: "🇹🇭", ISR: "🇮🇱", TUR: "🇹🇷", UKR: "🇺🇦",
-  MCO: "🇲🇨", LBN: "🇱🇧", SUI: "🇨🇭",
+  NED: "🇳🇱",
+  GBR: "🇬🇧",
+  FRA: "🇫🇷",
+  DEU: "🇩🇪",
+  ITA: "🇮🇹",
+  ESP: "🇪🇸",
+  CHE: "🇨🇭",
+  AUT: "🇦🇹",
+  BEL: "🇧🇪",
+  DNK: "🇩🇰",
+  SWE: "🇸🇪",
+  FIN: "🇫🇮",
+  NOR: "🇳🇴",
+  PRT: "🇵🇹",
+  GRC: "🇬🇷",
+  IRL: "🇮🇪",
+  POL: "🇵🇱",
+  CZE: "🇨🇿",
+  HUN: "🇭🇺",
+  ROU: "🇷🇴",
+  RUS: "🇷🇺",
+  USA: "🇺🇸",
+  CAN: "🇨🇦",
+  MEX: "🇲🇽",
+  BRA: "🇧🇷",
+  ARG: "🇦🇷",
+  CHL: "🇨🇱",
+  COL: "🇨🇴",
+  JPN: "🇯🇵",
+  CHN: "🇨🇳",
+  AUS: "🇦🇺",
+  NZL: "🇳🇿",
+  ZAF: "🇿🇦",
+  MYS: "🇲🇾",
+  ARE: "🇦🇪",
+  IND: "🇮🇳",
+  THA: "🇹🇭",
+  ISR: "🇮🇱",
+  TUR: "🇹🇷",
+  UKR: "🇺🇦",
+  MCO: "🇲🇨",
+  LBN: "🇱🇧",
+  SUI: "🇨🇭",
 };
 
 function formatGap(gap: string, gapLaps?: string): string {
@@ -117,9 +152,7 @@ export default function Leaderboard({ entries, activeClass }: Props) {
             <th className="hidden w-24 px-2 py-3 text-right md:table-cell">Gap</th>
             <th className="w-20 px-1 py-3 text-center">Sector</th>
             <th className="w-16 px-2 py-3 text-right">Δ</th>
-            {activeClass === "All" && (
-              <th className="w-16 px-2 py-3 text-right">Class</th>
-            )}
+            {activeClass === "All" && <th className="w-16 px-2 py-3 text-right">Class</th>}
           </tr>
         </thead>
         <tbody>
@@ -135,10 +168,18 @@ export default function Leaderboard({ entries, activeClass }: Props) {
                   className={`cursor-pointer border-b border-gray-800/50 transition-colors hover:bg-white/5 ${borderColor} border-l-2`}
                 >
                   <td className="px-2 py-2.5 sm:px-4">
-                    <span className={`font-bold tabular-nums ${
-                      car.ranking === 1 ? "text-leader" : "text-white"
-                    }`}>
-                      {car.ranking === 1 ? "🥇" : car.ranking === 2 ? "🥈" : car.ranking === 3 ? "🥉" : car.ranking}
+                    <span
+                      className={`font-bold tabular-nums ${
+                        car.ranking === 1 ? "text-leader" : "text-white"
+                      }`}
+                    >
+                      {car.ranking === 1
+                        ? "🥇"
+                        : car.ranking === 2
+                          ? "🥈"
+                          : car.ranking === 3
+                            ? "🥉"
+                            : car.ranking}
                     </span>
                   </td>
                   <td className="px-1 py-2.5">
@@ -174,9 +215,11 @@ export default function Leaderboard({ entries, activeClass }: Props) {
                   </td>
                   {activeClass === "All" && (
                     <td className="px-2 py-2.5 text-right">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        CAT_BADGE[car.category] || "bg-gray-700 text-gray-300"
-                      }`}>
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          CAT_BADGE[car.category] || "bg-gray-700 text-gray-300"
+                        }`}
+                      >
                         P{car.categoryPosition}
                       </span>
                     </td>
@@ -210,7 +253,9 @@ function CarDetail({ car }: { car: CarEntry }) {
           {drivers.map((d, i) => (
             <span key={i} className="flex items-center gap-1 rounded-md bg-bg2 px-2 py-1">
               {FLAGS[d.country] && <span>{FLAGS[d.country]}</span>}
-              <span className="font-semibold text-white">{d.firstName} {d.lastName}</span>
+              <span className="font-semibold text-white">
+                {d.firstName} {d.lastName}
+              </span>
               <span className="text-muted">{d.license}</span>
             </span>
           ))}
@@ -228,9 +273,18 @@ function CarDetail({ car }: { car: CarEntry }) {
         <DetailItem label="Class Gap" value={formatGap(car.classGap, car.classGapLaps)} />
         <DetailItem label="Gap to Prev" value={formatGap(car.gapPrev, car.gapPrevLaps)} />
         <DetailItem label="Class Pos" value={`P${car.categoryPosition}`} />
-        <DetailItem label="Class Δ" value={`${car.categoryPositionChange > 0 ? "+" : ""}${car.categoryPositionChange}`} />
-        <DetailItem label="Tyre" value={car.tyre === "M" ? "Michelin" : car.tyre === "G" ? "Goodyear" : car.tyre || "--"} />
-        <DetailItem label="State" value={car.state === "In" ? "On Track" : car.state === "Out" ? "In Pits" : car.state} />
+        <DetailItem
+          label="Class Δ"
+          value={`${car.categoryPositionChange > 0 ? "+" : ""}${car.categoryPositionChange}`}
+        />
+        <DetailItem
+          label="Tyre"
+          value={car.tyre === "M" ? "Michelin" : car.tyre === "G" ? "Goodyear" : car.tyre || "--"}
+        />
+        <DetailItem
+          label="State"
+          value={car.state === "In" ? "On Track" : car.state === "Out" ? "In Pits" : car.state}
+        />
         <DetailItem label="Pitstops" value={String(car.pitstop)} />
         <DetailItem label="Nat" value={flag ? `${flag} ${getDriverCountry(car)}` : "--"} />
       </div>

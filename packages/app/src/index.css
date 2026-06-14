@@ -11,19 +11,29 @@
   --color-lmp2: #2ed573;
   --color-lmgt3: #1e90ff;
   --color-leader: #ffd700;
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
 }
 
 body {
   margin: 0;
   background: var(--color-bg);
   color: #e0e0e0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .live-dot {

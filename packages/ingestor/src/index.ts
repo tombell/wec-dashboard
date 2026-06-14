@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+
 import type { RawData } from "./types.js";
 
 const DATA_URL = "https://storage.googleapis.com/ecm-prod/live/WEC/data.json";
@@ -65,7 +66,7 @@ async function main() {
       const { params, entries } = data;
 
       // Dedup: skip if params unchanged (happens between poll cycles)
-      const paramsJson = JSON.stringify(data.params, Object.keys(data.params).sort());
+      const paramsJson = JSON.stringify(data.params, Object.keys(data.params).toSorted());
       if (paramsJson === lastParamsJson && pollCount > 5) continue;
       lastParamsJson = paramsJson;
 

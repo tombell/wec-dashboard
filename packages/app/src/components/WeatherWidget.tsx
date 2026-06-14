@@ -17,7 +17,9 @@ export default function WeatherWidget({ weather }: { weather: WeatherData }) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs sm:text-sm">
-      <span className="text-lg leading-none" title={weather.condition}>{icon}</span>
+      <span className="text-lg leading-none" title={weather.condition}>
+        {icon}
+      </span>
       <span className="text-muted">Air:</span>
       <span className="font-semibold tabular-nums">{Math.round(weather.air_temp)}&deg;C</span>
       <span className="text-muted">Track:</span>

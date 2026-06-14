@@ -1,4 +1,5 @@
 import { FastifyInstance } from "fastify";
+
 import { getSessions } from "../redis.js";
 
 export default async function sessionsRoutes(fastify: FastifyInstance) {

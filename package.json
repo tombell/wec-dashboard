@@ -6,7 +6,15 @@
     "build": "pnpm -r run build",
     "start": "pnpm --filter api run start",
     "typecheck": "pnpm -r run typecheck",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean",
+    "lint": "oxlint packages/",
+    "lint:fix": "oxlint --fix packages/",
+    "fmt": "oxfmt packages/",
+    "fmt:check": "oxfmt --check packages/"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.53.0",
+    "oxlint": "^1.68.0"
   },
   "engines": {
     "node": ">=18"

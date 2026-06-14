@@ -1,14 +1,16 @@
-import Fastify from "fastify";
+import fs from "fs";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
+
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
-import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
-import fs from "fs";
+import Fastify from "fastify";
+
 import { connectRedis, closeRedis } from "./redis.js";
 import currentRoutes from "./routes/current.js";
 import entriesRoutes from "./routes/entries.js";
-import sessionsRoutes from "./routes/sessions.js";
 import historyRoutes from "./routes/history.js";
+import sessionsRoutes from "./routes/sessions.js";
 
 const PORT = parseInt(process.env.PORT ?? "8001", 10);
 

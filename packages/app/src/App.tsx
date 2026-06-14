@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import type { ApiCurrent, CarEntry } from "@/types";
+
 import { fetchCurrent } from "@/api/client";
-import SessionInfo from "@/components/SessionInfo";
-import WeatherWidget from "@/components/WeatherWidget";
 import ClassFilter from "@/components/ClassFilter";
 import Leaderboard from "@/components/Leaderboard";
+import SessionInfo from "@/components/SessionInfo";
+import WeatherWidget from "@/components/WeatherWidget";
+import type { ApiCurrent, CarEntry } from "@/types";
 
 const CLASSES = ["All", "HYPERCAR", "LMP2", "LMGT3"];
 

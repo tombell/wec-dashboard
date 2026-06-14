@@ -16,15 +16,16 @@ export default function ClassFilter({ classes, active, counts, onSelect }: Props
     <div className="mb-4 flex flex-wrap gap-2">
       {classes.map((cls) => {
         const isActive = cls === active;
-        const color = cls === "All" ? "border-accent text-accent" : (CLASS_COLORS[cls] || "");
+        const color = cls === "All" ? "border-accent text-accent" : CLASS_COLORS[cls] || "";
         return (
           <button
             key={cls}
             onClick={() => onSelect(cls)}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors
-              ${isActive
-                ? `${color} bg-bg3`
-                : "border-gray-700 text-muted hover:border-gray-500 hover:text-white"
+              ${
+                isActive
+                  ? `${color} bg-bg3`
+                  : "border-gray-700 text-muted hover:border-gray-500 hover:text-white"
               }`}
           >
             {cls === "All" ? "🏁 All" : cls}

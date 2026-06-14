@@ -42,12 +42,9 @@ export async function getCurrentState<T = Record<string, unknown>>(): Promise<T 
  * Returns the top 20 most recently seen sessions.
  */
 export async function getSessions(limit = 20): Promise<Record<string, unknown>[]> {
-  const results = await getRedis().zrevrange("wec:sessions", 0, limit - 1, "WITHSCORES");
+  const results = await getRedis().zrevrange("wec:sessions", 0, limit - 1);
   const sessions: Record<string, unknown>[] = [];
-  // zrevrange with WITHSCORES returns [member1, score1, member2, score2, ...]
-  for (let i = 0; i < results.length; i += 2) {
-    const member = results[i];
-    const score = results[i + 1];
+  for (const member of results) {
     try {
       const parsed = JSON.parse(member);
       sessions.push(parsed);
@@ -62,7 +59,10 @@ export async function getSessions(limit = 20): Promise<Record<string, unknown>[]
  * LRANGE wec:snapshots:{sessionId} 0 limit-1.
  * Returns the most recent snapshots for a given session.
  */
-export async function getSnapshots(sessionId: string | number, limit = 50): Promise<Record<string, unknown>[]> {
+export async function getSnapshots(
+  sessionId: string | number,
+  limit = 50,
+): Promise<Record<string, unknown>[]> {
   const key = `wec:snapshots:${sessionId}`;
   const raw = await getRedis().lrange(key, 0, limit - 1);
   return raw

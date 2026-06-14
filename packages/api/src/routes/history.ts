@@ -1,4 +1,5 @@
 import { FastifyInstance } from "fastify";
+
 import { getSnapshots } from "../redis.js";
 
 export default async function historyRoutes(fastify: FastifyInstance) {
@@ -8,9 +9,7 @@ export default async function historyRoutes(fastify: FastifyInstance) {
         string,
         string | undefined
       >;
-      const sessionId = sessionIdStr
-        ? parseInt(sessionIdStr, 10)
-        : undefined;
+      const sessionId = sessionIdStr ? parseInt(sessionIdStr, 10) : undefined;
       const limit = Math.min(parseInt(limitStr ?? "50", 10) || 50, 200);
 
       if (sessionId === undefined || isNaN(sessionId)) {

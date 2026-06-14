@@ -1,4 +1,5 @@
 import { FastifyInstance } from "fastify";
+
 import { getCurrentState } from "../redis.js";
 
 export default async function currentRoutes(fastify: FastifyInstance) {
@@ -34,9 +35,7 @@ export default async function currentRoutes(fastify: FastifyInstance) {
           remaining_seconds: (params.remaining as number) ?? 0,
           flag_state: (params.raceState as string) ?? "green",
           safety_car:
-            params.safetyCar !== "N/A" &&
-            params.safetyCar !== "" &&
-            params.safetyCar != null,
+            params.safetyCar !== "N/A" && params.safetyCar !== "" && params.safetyCar != null,
           start_time: (params.startTime as number | null) ?? null,
           duration: (params.duration as number | null) ?? null,
           weather: {
