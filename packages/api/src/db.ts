@@ -1,28 +1,25 @@
-import { Redis } from "ioredis";
+import { MongoClient, type Db } from "mongodb";
 
-const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
+const MONGO_URI = process.env.MONGO_CONNECTION_STRING ?? "mongodb://localhost:27017";
+const DB_NAME = "wec-livetiming";
 
-let redis: Redis | null = null;
+let client: MongoClient | null = null;
+let db: Db | null = null;
 
-export async function connectDB(): Promise<Redis> {
-  if (redis) return redis;
-  redis = new Redis(REDIS_URL);
-  redis.on("error", (err) => {
-    console.error("[wec-api] Redis error:", err.message);
-  });
-  await redis.ping();
-  console.log(`[wec-api] Connected to Redis at ${REDIS_URL}`);
-  return redis;
+export async function connectDB(): Promise<Db> {
+  if (db) return db;
+  client = new MongoClient(MONGO_URI);
+  await client.connect();
+  db = client.db(DB_NAME);
+  console.log(`[wec-api] Connected to MongoDB — ${DB_NAME} @ ${MONGO_URI}`);
+  return db;
 }
 
-export function getRedis(): Redis {
-  if (!redis) throw new Error("Redis not connected. Call connectDB() first.");
-  return redis;
+export function getDB(): Db {
+  if (!db) throw new Error("Database not connected. Call connectDB() first.");
+  return db;
 }
 
 export async function closeDB(): Promise<void> {
-  if (redis) {
-    redis.disconnect();
-    redis = null;
-  }
+  if (client) await client.close();
 }

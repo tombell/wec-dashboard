@@ -67,7 +67,7 @@ importers:
   packages/ingestor:
     dependencies:
       mongodb:
-        specifier: ^6.9.0
+        specifier: ^6.15.0
         version: 6.21.0
     devDependencies:
       '@types/node':

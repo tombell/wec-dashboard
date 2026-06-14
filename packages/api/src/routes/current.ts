@@ -1,17 +1,19 @@
 import { FastifyInstance } from "fastify";
-import { getRedis } from "../db.js";
+import { getDB } from "../db.js";
+import type { CurrentState } from "../types.js";
 
 export default async function currentRoutes(fastify: FastifyInstance) {
   fastify.get("/api/current", async (_request, reply) => {
     try {
-      const redis = getRedis();
-      const raw = await redis.get("wec:current");
+      const db = getDB();
+      const state = await db
+        .collection<CurrentState>("current_state")
+        .findOne({ _type: "latest" });
 
-      if (!raw) {
+      if (!state) {
         return { live: false, params: null, entries: [] };
       }
 
-      const state = JSON.parse(raw);
       const params = state.params ?? {};
       const entries = state.entries ?? [];
       const elapsed_s = (params.elapsedTime as number) ?? 0;

@@ -1,16 +1,23 @@
 import { FastifyInstance } from "fastify";
-import { getRedis } from "../db.js";
+import { getDB } from "../db.js";
+
+interface SessionDoc {
+  session_id: number;
+  event_name: string;
+  first_seen: string;
+  last_seen: string;
+}
 
 export default async function sessionsRoutes(fastify: FastifyInstance) {
   fastify.get("/api/sessions", async (_request, reply) => {
     try {
-      const redis = getRedis();
-      const rawMap = await redis.hgetall("wec:sessions");
-
-      const sessions = Object.values(rawMap)
-        .map((v) => JSON.parse(v))
-        .sort((a, b) => (b.last_seen as string).localeCompare(a.last_seen as string))
-        .slice(0, 20);
+      const db = getDB();
+      const sessions = await db
+        .collection<SessionDoc>("sessions")
+        .find({}, { projection: { _id: 0 } })
+        .sort({ last_seen: -1 })
+        .limit(20)
+        .toArray();
 
       return { count: sessions.length, sessions };
     } catch (err) {

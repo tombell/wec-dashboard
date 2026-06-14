@@ -1,12 +1,10 @@
-import { Redis } from "ioredis";
+import { MongoClient } from "mongodb";
 import type { RawData } from "./types.js";
 
 const DATA_URL = "https://storage.googleapis.com/ecm-prod/live/WEC/data.json";
 const POLL_INTERVAL_MS = 3_000;
-const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
-
-const REDIS_KEY_CURRENT = "wec:current";
-const REDIS_KEY_SNAPSHOTS_PREFIX = "wec:snapshots:";
+const MONGO_URL = process.env.MONGO_URL ?? "mongodb://localhost:27017";
+const DB_NAME = process.env.MONGO_DB ?? "wec-livetiming";
 
 let running = true;
 let pollCount = 0;
@@ -40,66 +38,6 @@ function elapsedStr(seconds: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-async function storeSnapshot(redis: Redis, data: RawData): Promise<void> {
-  // Dedup: skip if params unchanged (happens between poll cycles)
-  const paramsJson = JSON.stringify(data.params, Object.keys(data.params).sort());
-  if (paramsJson === lastParamsJson && pollCount > 5) return;
-  lastParamsJson = paramsJson;
-
-  const now = new Date().toISOString();
-  const { params, entries } = data;
-
-  // 1. Current state (latest blob) — replaces current_state upsert
-  const currentState = {
-    _type: "latest",
-    updated_at: now,
-    poll: pollCount,
-    params,
-    entries,
-  };
-  await redis.set(REDIS_KEY_CURRENT, JSON.stringify(currentState));
-
-  // 2. Per-car entries (hash) — replaces entries collection
-  const pipeline = redis.pipeline();
-  for (const entry of entries) {
-    pipeline.hset(
-      "wec:entries",
-      String(entry.id),
-      JSON.stringify({
-        ...entry,
-        _last_updated: now,
-        _ingested_at: now,
-      }),
-    );
-  }
-  if (entries.length > 0) {
-    await pipeline.exec();
-  }
-
-  // 3. Session snapshot (list, prepend) — replaces snapshots insert
-  const sessionId = params.sessionId;
-  if (sessionId != null) {
-    const snapshot = { ingested_at: now, poll: pollCount, params, entries };
-    await redis.lpush(`${REDIS_KEY_SNAPSHOTS_PREFIX}${sessionId}`, JSON.stringify(snapshot));
-    // Trim to keep only last 500 snapshots per session
-    await redis.ltrim(`${REDIS_KEY_SNAPSHOTS_PREFIX}${sessionId}`, 0, 499);
-
-    // 4. Session metadata (hash) — replaces sessions upsert
-    await redis.hset("wec:sessions", String(sessionId), JSON.stringify({
-      session_id: sessionId,
-      event_name: params.sessionName ?? "unknown",
-      first_seen: now,
-      last_seen: now,
-      last_params: params,
-    }));
-  }
-
-  const elapsed = params.elapsedTime ?? 0;
-  console.log(
-    `[ingestor] Snapshot ${pollCount} | ${params.sessionName ?? "Race"} | ${entries.length} cars | ${elapsedStr(elapsed)} elapsed`,
-  );
-}
-
 function isLive(data: RawData | null): boolean {
   if (!data) return false;
   const entries = data.entries ?? [];
@@ -108,14 +46,12 @@ function isLive(data: RawData | null): boolean {
 }
 
 async function main() {
-  console.log(`[ingestor] Connecting to Redis at ${REDIS_URL}`);
-  const redis = new Redis(REDIS_URL);
+  console.log(`[ingestor] Connecting to MongoDB at ${MONGO_URL}`);
+  const client = new MongoClient(MONGO_URL);
+  await client.connect();
+  const db = client.db(DB_NAME);
+  console.log(`[ingestor] Connected — ${DB_NAME}`);
 
-  redis.on("error", (err) => {
-    console.error("[ingestor] Redis error:", err.message);
-  });
-
-  await redis.ping();
   console.log(`[ingestor] Polling ${DATA_URL} every ${POLL_INTERVAL_MS}ms`);
 
   let consecutiveStale = 0;
@@ -124,18 +60,68 @@ async function main() {
     const data = await fetchData();
     pollCount++;
 
-    if (data) {
-      if (isLive(data)) {
-        await storeSnapshot(redis, data);
-        consecutiveStale = 0;
-      } else {
-        consecutiveStale++;
-        if (consecutiveStale === 1) {
-          console.log("[ingestor] No live session. Idle polling...");
-        }
+    if (data && isLive(data)) {
+      consecutiveStale = 0;
+      const now = new Date().toISOString();
+      const { params, entries } = data;
+
+      // Dedup: skip if params unchanged (happens between poll cycles)
+      const paramsJson = JSON.stringify(data.params, Object.keys(data.params).sort());
+      if (paramsJson === lastParamsJson && pollCount > 5) continue;
+      lastParamsJson = paramsJson;
+
+      // 1. Current state (latest blob)
+      await db.collection("current_state").updateOne(
+        { _type: "latest" },
+        { $set: { _type: "latest", updated_at: now, poll: pollCount, params, entries } },
+        { upsert: true },
+      );
+
+      // 2. Per-car entries
+      const entryOps = entries.map((entry) => ({
+        updateOne: {
+          filter: { id: entry.id },
+          update: {
+            $set: { ...entry, _type: "entry", _last_updated: now, _ingested_at: now },
+          },
+          upsert: true,
+        },
+      }));
+      if (entryOps.length > 0) {
+        await db.collection("entries").bulkWrite(entryOps, { ordered: false });
       }
+
+      // 3. Session snapshot
+      const sessionId = params.sessionId;
+      if (sessionId != null) {
+        const snapshot = { ingested_at: now, poll: pollCount, params, entries };
+        await db.collection("snapshots").insertOne(snapshot);
+
+        // 4. Session metadata
+        await db.collection("sessions").updateOne(
+          { session_id: sessionId },
+          {
+            $set: {
+              session_id: sessionId,
+              event_name: params.sessionName ?? "unknown",
+              last_seen: now,
+              last_params: params,
+            },
+            $setOnInsert: { first_seen: now },
+          },
+          { upsert: true },
+        );
+      }
+
+      const elapsed = params.elapsedTime ?? 0;
+      console.log(
+        `[ingestor] Snapshot ${pollCount} | ${params.sessionName ?? "Race"} | ${entries.length} cars | ${elapsedStr(elapsed)} elapsed`,
+      );
     } else {
       consecutiveStale++;
+      if (consecutiveStale === 1) {
+        console.log("[ingestor] No live session. Idle polling...");
+      }
     }
 
     // Sleep in 100ms increments so we can catch signals
@@ -144,7 +130,7 @@ async function main() {
     }
   }
 
-  redis.disconnect();
+  await client.close();
   console.log(`[ingestor] Stopped. ${pollCount} polls.`);
 }
 
