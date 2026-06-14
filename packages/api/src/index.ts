@@ -32,7 +32,7 @@ await fastify.register(historyRoutes);
 
 // Health check
 fastify.get("/api/health", async () => {
-  return { status: "ok", db: "wec-livetiming" };
+  return { status: "ok", store: "redis" };
 });
 
 // Serve built frontend
