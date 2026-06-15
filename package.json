@@ -2,7 +2,7 @@
   "name": "wec-dashboard",
   "private": true,
   "scripts": {
-    "dev": "pnpm --parallel -r run dev",
+    "dev": "pnpm --parallel --filter ingestor --filter api --filter app run dev",
     "build": "pnpm -r run build",
     "start": "pnpm --filter api run start",
     "typecheck": "pnpm -r run typecheck",

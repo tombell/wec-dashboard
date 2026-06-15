@@ -51,7 +51,7 @@ pnpm install
 pnpm --filter app run build
 
 # Quick start (all services)
-./start.sh
+pnpm dev
 ```
 
 The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
@@ -60,7 +60,7 @@ The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start API + frontend dev servers (run ingestor separately) |
+| `pnpm dev` | Start ingestor + API + frontend dev servers |
 | `pnpm build` | Build all packages |
 | `pnpm typecheck` | TypeScript check all packages |
 | `pnpm clean` | Remove all `dist/` directories |
