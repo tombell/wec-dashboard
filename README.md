@@ -1,116 +1,138 @@
-# WEC Live Dashboard 🏁
+# WEC Live Dashboard
 
-Real-time live timing dashboard for **FIA World Endurance Championship** races including the **24 Hours of Le Mans**. Polls the public FIA WEC timing JSON feed, stores snapshots in Redis, and serves a React frontend.
+Live timing dashboard for FIA World Endurance Championship sessions. The ingestor polls the public WEC timing feed, stores the latest state and recent snapshots in Redis, the API exposes that data through Fastify, and the React app renders the dashboard.
 
-Built with TypeScript, Fastify, React 19, Tailwind v4, and pnpm.
+## Stack
 
-## How It Works
-
-```mermaid
-flowchart LR
-  A["FIA WEC GCS Bucket<br/>(ecm-prod/live/WEC/data.json)"] -->|"poll 3s"| B["Ingestor (TS)<br/>packages/ingestor"]
-  B -->|"write"| C[(Redis<br/>wec-livetiming)]
-  C -->|"read"| D["API (Fastify / TS)<br/>packages/api · port 8001"]
-  D -->|"serves"| E["React Dashboard<br/>packages/app · port 5173 dev"]
-  D -->|"serves"| F["Built Frontend<br/>(packages/app/dist)"]
-```
-
-The official FIA WEC live timing system writes a JSON file to a public GCS bucket every ~3 seconds during live sessions:
-
-```
-https://storage.googleapis.com/ecm-prod/live/WEC/data.json
-```
-
-No authentication required — it's the same data powering `fiawec.com` and `24h-lemans.com` live timing. Covers all WEC rounds: Qatar, Imola, Spa, Le Mans, São Paulo, Austin, Fuji, Bahrain.
-
-**Not available:** GPS/XY car positions (sector-level only — no minimap), car telemetry, or replay of past sessions.
-
-## Features
-
-- **Live leaderboard** — class-coloured rows with position, driver flags, team, car
-- **Class tabs** — filter All / Hypercar / LMP2 / LMGT3
-- **Sector dots** — 3-dot indicator per car for current track sector
-- **Position changes** — ▲ green (gained) / ▼ red (lost) arrows
-- **Race progress** — percentage bar and race timer with remaining time
-- **Weather bar** — air temp, track temp, humidity, pressure, wind
-- **Expandable car detail** — click any row for full driver roster, sector times, gaps, tyre, state
-- **Auto-refresh** — polls every 5 seconds
+- Node.js, TypeScript, pnpm workspaces
+- Redis for current timing state and session snapshots
+- Fastify API in `packages/api`
+- React 19, Vite, and Tailwind CSS v4 in `packages/app`
+- Timing feed ingestor in `packages/ingestor`
 
 ## Prerequisites
 
-- Redis running on `localhost:6379`
-- Node.js 22+ and pnpm
+- Node.js 18 or newer
+- pnpm
+- Redis available at `redis://localhost:6379`, or set `REDIS_URL`
 
-## Getting Started
+## Install
 
 ```bash
-# Install dependencies
 pnpm install
+```
 
-# Build the frontend
-pnpm --filter app run build
+## Development
 
-# Quick start (all services)
+Start Redis first, then run all development services:
+
+```bash
 pnpm dev
 ```
 
-The dev server on `:5173` proxies `/api/*` to the backend on `:8001`.
+This starts:
 
-### Commands
+| Service | Command | Default URL |
+| --- | --- | --- |
+| Ingestor | `pnpm --filter ingestor run dev` | N/A |
+| API | `pnpm --filter api run dev` | `http://localhost:8001` |
+| App | `pnpm --filter app run dev` | `http://localhost:5173` |
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start ingestor + API + frontend dev servers |
-| `pnpm build` | Build all packages |
-| `pnpm typecheck` | TypeScript check all packages |
-| `pnpm clean` | Remove all `dist/` directories |
-| `pnpm --filter ingestor run start` | Start the data ingestor |
-| `pnpm --filter api run dev` | API server (port 8001) |
-| `pnpm --filter app run dev` | Frontend dev server with HMR (port 5173) |
+The Vite dev server proxies `/api/*` to `http://localhost:8001`.
 
-### Running Individually
+Run services individually when debugging a specific package:
 
-**1. Ingestor** — poll live data into Redis:
 ```bash
-pnpm --filter ingestor run start
-```
-
-**2. API** — serve JSON + built frontend (port 8001):
-```bash
+pnpm --filter ingestor run dev
 pnpm --filter api run dev
-```
-
-**3. Frontend (dev mode with hot reload on port 5173):**
-```bash
 pnpm --filter app run dev
 ```
 
-## Services
-
-| Service | URL |
-|---------|-----|
-| Dashboard (built) | `http://localhost:8001` |
-| Dev dashboard | `http://localhost:5173` |
-| API | `http://localhost:8001/api/current` |
-
-## API Endpoints
+Useful endpoints while developing:
 
 | Endpoint | Description |
-|----------|-------------|
-| `GET /api/current` | Full live snapshot — session info, weather, all entries |
-| `GET /api/entries?category=HYPERCAR` | Per-car data, filterable by class |
-| `GET /api/entries/{id}` | Single car detail |
-| `GET /api/sessions` | Known session history |
-| `GET /api/history` | Raw snapshot archive |
+| --- | --- |
+| `GET /api/health` | API health check |
+| `GET /api/current` | Latest live snapshot |
+| `GET /api/entries?category=HYPERCAR` | Entries, optionally filtered by category |
+| `GET /api/entries/{id}` | Single entry detail |
+| `GET /api/sessions` | Known sessions |
+| `GET /api/history` | Recent stored snapshots |
 
-## Data Source Notes
+## Build
 
-- **Endpoint:** `https://storage.googleapis.com/ecm-prod/live/WEC/data.json`
-- The data is owned by Al Kamel Systems S.L. — personal use only
-- The ACO has previously shut down third-party live timing services — this is for personal use
+Build every workspace package:
 
-## Related
+```bash
+pnpm build
+```
 
-- [FIA WEC Live Timing](https://fiawec.alkamelsystems.com/) — official timing site
-- [24 Hours of Le Mans](https://www.24h-lemans.com/en) — official event site
-- [OpenF1](https://openf1.org/) — open-source F1 API (inspiration for this project)
+Or build a single package:
+
+```bash
+pnpm build:app
+pnpm build:api
+pnpm build:ingestor
+```
+
+The API serves the built frontend from `packages/app/dist` when that directory exists.
+
+## Run Built Output
+
+Build first, make sure Redis is running, then start the long-running processes:
+
+```bash
+pnpm build
+pnpm start:ingestor
+pnpm start:api
+```
+
+Open `http://localhost:8001` for the built dashboard. Set `PORT` to change the API port:
+
+```bash
+PORT=8080 pnpm start:api
+```
+
+## Checks
+
+Run these before opening a PR or handing off changes:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm fmt:check
+```
+
+Fix formatting and auto-fixable lint issues with:
+
+```bash
+pnpm fmt
+pnpm lint:fix
+```
+
+Remove generated `dist` directories:
+
+```bash
+pnpm clean
+```
+
+## Development Process
+
+1. Keep changes scoped to the affected package.
+2. Use `pnpm dev` for end-to-end work, or run one package directly for focused debugging.
+3. If API shape changes, update the matching app code and keep endpoint behavior documented here.
+4. Run `pnpm typecheck` after TypeScript changes.
+5. Run `pnpm lint` and `pnpm fmt:check` before committing.
+6. For release or deployment changes, verify `pnpm build` and start the built API with the app bundle present.
+
+## Data Source
+
+The ingestor polls:
+
+```text
+https://storage.googleapis.com/ecm-prod/live/WEC/data.json
+```
+
+The feed is public and requires no authentication. It updates during live sessions and may be stale or sparse outside active race weekends.
+
+The data is owned by Al Kamel Systems S.L. and should be treated as personal-use data. The project does not include GPS positions, car telemetry, or replay data beyond the Redis snapshots captured while the ingestor is running.
