@@ -1,6 +1,7 @@
 {
   "name": "wec-dashboard",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "pnpm --parallel --filter ingestor --filter api --filter app run dev",
     "build": "pnpm -r run build",
