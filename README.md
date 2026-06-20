@@ -87,10 +87,10 @@ pnpm start:ingestor
 pnpm start:api
 ```
 
-Open `http://localhost:8001` for the built dashboard. Set `PORT` to change the API port:
+Open `http://localhost:8001` for the built dashboard. Set `PORT` only if you need a non-default API port; do not use `8080` because that port is reserved for the F1 dashboard:
 
 ```bash
-PORT=8080 pnpm start:api
+PORT=8002 pnpm start:api
 ```
 
 ## Checks
